@@ -10,43 +10,56 @@ internal class Program
 {
     private static async Task<int> Main()
     {
-        try
+        var stopwatch = Stopwatch.StartNew();
+
+        var success = false;
+
+        // Retry the automation until the retry duration time limit is hit
+        while (stopwatch.Elapsed < GeneralConfiguration.RetryDurationMinutes)
         {
-            // Load .env file
-            DotEnvService.Load();
+            try
+            {
+                // Load .env file
+                DotEnvService.Load();
 
-            Console.WriteLine("Starting automation workflows...\n");
+                Console.WriteLine("Starting automation workflows...\n");
 
-            // Configuration
-            var rustDeskConfig = new RustDeskConfig();
+                // Configuration
+                var rustDeskConfig = new RustDeskConfig();
 
-            // Services (Dependency Injection by hand - could use DI container for larger apps)
-            var uiAutomation = new UIAutomationService();
-            var processManager = new ProcessManager(rustDeskConfig, uiAutomation);
-            var inputService = new InputService();
+                // Services
+                var uiAutomation = new UIAutomationService();
+                var processManager = new ProcessManager(rustDeskConfig, uiAutomation);
+                var inputService = new InputService();
 
-            Console.WriteLine("=== RustDesk Automation Workflow ===\n");
-            var rustDeskAutomation = new RustDeskAutomationWorkflow(
-                rustDeskConfig,
-                processManager,
-                uiAutomation,
-                inputService);
+                Console.WriteLine("=== RustDesk Automation Workflow ===\n");
+                var rustDeskAutomation = new RustDeskAutomationWorkflow(
+                    rustDeskConfig,
+                    processManager,
+                    uiAutomation,
+                    inputService);
 
-            await rustDeskAutomation.RunAsync();
+                await rustDeskAutomation.RunAsync();
 
-            // Run winget upgrade batch file
-            Console.WriteLine("\n=== Running Winget Upgrade ===\n");
-            RunWingetUpgradeFileWithOutputAsync();
+                // Run winget upgrade batch file
+                Console.WriteLine("\n=== Running Winget Upgrade ===\n");
+                RunWingetUpgradeFileWithOutputAsync();
 
-            Console.WriteLine("\nAll automation workflows completed successfully.");
+                Console.WriteLine("\nAll automation workflows completed successfully.");
 
-            return 0;
+                success = true;
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+
+                success = false;
+                await Task.Delay(GeneralConfiguration.RetryDelaySeconds);
+            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex);
-            return 1; // Error - Task scheduler will detect it and rerun the application
-        }
+
+        return success ? 0 : 1;
     }
 
     private static void RunWingetUpgradeFileWithOutputAsync()
