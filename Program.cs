@@ -71,8 +71,8 @@ internal class Program
 
         var processStartInfo = new ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/k \"{batFilePath}\"",
+            FileName = "wt.exe",
+            Arguments = $"cmd /k \"{batFilePath}\"",
             UseShellExecute = true
         };
 
